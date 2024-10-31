@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, Button, TouchableOpacity, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import { MaterialIcons } from '@expo/vector-icons';  // Import the Material Icons library
 
 export default function App() {
   const [isRecording, setIsRecording] = useState(false);
@@ -9,28 +10,27 @@ export default function App() {
   const [responseText, setResponseText] = useState('');
   const [audioUri, setAudioUri] = useState('');
   const playbackInstance = useRef(new Audio.Sound());
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Toggle recording start and stop
-  const toggleRecording = async () => {
-    if (isRecording) {
-      // Stop recording
-      await stopRecording();
+  const toggleMic = async () => {
+    setIsRecording((prev) => !prev);
+
+    if (!isRecording) {
+      startRecording();
     } else {
-      // Start recording
-      await startRecording();
+      stopRecording();
     }
   };
 
   // Start recording
   const startRecording = async () => {
     try {
-      console.log('Requesting permissions..');
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
         alert('Permission to access microphone is required!');
         return;
       }
-      console.log('Starting recording..');
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
 
       const recording = new Audio.Recording();
@@ -41,23 +41,22 @@ export default function App() {
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
+    startPulseAnimation();
   };
 
   // Stop recording and handle audio file
   const stopRecording = async () => {
-    console.log('Stopping recording..');
     setIsRecording(false);
     await recording.stopAndUnloadAsync();
 
     const uri = recording.getURI();
     setAudioUri(uri);
-    console.log('Recording stopped and stored at', uri);
 
-    // Convert audio to base64 and send to backend
     const base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
     await sendAudio(base64Audio);
 
     setRecording(null);
+    stopPulseAnimation();
   };
 
   // Send audio to backend for processing
@@ -72,7 +71,6 @@ export default function App() {
       });
 
       const data = await response.json();
-      console.log('Success:', data);
 
       if (data.audio) {
         playAudioResponse(data.audio);
@@ -92,22 +90,60 @@ export default function App() {
     await playbackInstance.current.playAsync();
   };
 
+  // Play last recorded audio
+  const playLastRecordedAudio = async () => {
+    try {
+      if (audioUri) {
+        await playbackInstance.current.unloadAsync();
+        await playbackInstance.current.loadAsync({ uri: audioUri });
+        await playbackInstance.current.playAsync();
+      } else {
+        alert('No audio recorded yet.');
+      }
+    } catch (error) {
+      console.error('Error playing last recorded audio:', error);
+    }
+  };
+
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const stopPulseAnimation = () => {
+    pulseAnim.stopAnimation();
+    pulseAnim.setValue(1);
+  };
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.micButton, isRecording ? styles.recording : null]}
-        onPress={toggleRecording}
-      >
-        <Text style={styles.micText}>{isRecording ? 'Stop' : 'Record'}</Text>
-      </TouchableOpacity>
+    <View style={styles.page}>
+      <Animated.View style={[styles.micButtonContainer, isRecording && styles.isRecording, { transform: [{ scale: pulseAnim }] }]}>
+        <TouchableOpacity style={styles.micButton} onPress={toggleMic}>
+          <Text>
+            <MaterialIcons name="mic" size={80} color="#fff" />
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       <Text style={styles.heading}>Response Text</Text>
       <ScrollView style={styles.responseBox}>
-        <Text>{responseText}</Text>
+        <Text style={styles.responseText}>{responseText}</Text>
       </ScrollView>
       
       {audioUri ? (
-        <TouchableOpacity onPress={() => playbackInstance.current.replayAsync()}>
+        <TouchableOpacity onPress={playLastRecordedAudio}>
           <Text style={styles.playbackText}>Play Last Recorded Audio</Text>
         </TouchableOpacity>
       ) : null}
@@ -116,39 +152,50 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  page: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 32,
+    backgroundColor: '#808080', // Grey background color
+  },
+  micButtonContainer: {
+    width: 180,                   // Larger outer circle
+    height: 180,
+    borderRadius: 90,             // Half of width/height for a perfect circle
+    backgroundColor: 'rgba(255, 0, 0, 0.3)', // Light red pulsing background color
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   micButton: {
-    backgroundColor: '#333',
-    padding: 20,
-    borderRadius: 50,
-    marginBottom: 20,
+    width: 150,                  // Larger inner button size
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#800000',  // Maroon color for the mic button
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  recording: {
-    backgroundColor: '#d9534f',
-  },
-  micText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  isRecording: {
+    backgroundColor: 'rgba(255, 0, 0, 0.5)', // Darker red when recording
   },
   heading: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
     marginVertical: 20,
   },
   responseBox: {
     width: '100%',
     height: 150,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#444',
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#1e1e1e',
+    color: '#ffffff',
+  },
+  responseText: {
+    color: '#fff',
   },
   playbackText: {
     color: '#007bff',
