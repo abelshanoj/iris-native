@@ -71,7 +71,7 @@ export default function App() {
   // Send audio to backend for processing
   const sendAudio = async (base64Audio) => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/prompt', {
+      const response = await fetch('https://ruling-toad-nationally.ngrok-free.app/prompt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
