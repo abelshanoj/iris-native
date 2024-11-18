@@ -2,6 +2,12 @@
   "expo": {
     "name": "Iris",
     "slug": "Iris",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "c0d129e3-11ae-4fd2-be0e-2595d2e48687"
+      }
+    },
+    "owner": "abel2003"
   }
 }
