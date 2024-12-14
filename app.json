@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "sample_iris",
+    "slug": "sample_iris",
+    "scheme":"sample_iris",
+    "version": "1.0.0",
+    "plugins": [
+      [
+        "react-native-auth0",
+        {
+          "domain": "dev-h3kr8d86kmzw5o8u.us.auth0.com",
+          "clientId": "1xeC7oxiNMx92knH3MkKN3AYSxejciqp"
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.abel2003.sample_iris"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5621a5f9-f265-4234-b103-08abf4b97714"
+      }
+    }
+  }
+}
